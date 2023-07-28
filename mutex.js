@@ -85,21 +85,38 @@ export class ConcurrencyController {
   #mutex = new Mutex()
   #maxConcurrency
   #runningJobs = 0
+  #jobsPushed = 0
+  #jobsDone = 0
+  #donePromise
+  #donePromiseResolve
 
   constructor(maxConcurrency) {
     if (typeof maxConcurrency != 'number') throw Error('maxConcurrency must be specified as a number.')
     this.#maxConcurrency = maxConcurrency
   }
 
-  async pushJob(jobFunction) {
+  /** Resolves when jobs are completed. `true` if it waited for jobs to complete or `false` if the jobs were already completed. */
+  get donePromise() {
+    if (this.#jobsDone == this.#jobsPushed) return Promise.resolve(false)
+    if (!this.#donePromise) this.#donePromise = new Promise(resolve => this.#donePromiseResolve = resolve)
+    return this.#donePromise
+  }
+
+  async pushJob(jobFunction, ...args) {
+    this.#jobsPushed ++
     if (this.#runningJobs > this.#maxConcurrency) {
       throw Error('omg')
     } else if (this.#runningJobs == this.#maxConcurrency) {
       await this.#mutex.lock() // unlocked when work available
     }
     this.#runningJobs ++
-    await jobFunction()
+    await jobFunction(...args)
     this.#runningJobs --
     this.#mutex.key?.unlock() // signal work available to next waiting job
+    this.#jobsDone ++
+    if (this.#donePromise && this.#jobsDone == this.#jobsPushed) {
+      this.#donePromiseResolve(true)
+      this.#donePromise = null
+    }
   }
 }
