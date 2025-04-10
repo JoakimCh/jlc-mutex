@@ -91,7 +91,8 @@ export class ConcurrencyController {
   #donePromiseResolve
 
   constructor(maxConcurrency) {
-    if (typeof maxConcurrency != 'number') throw Error('maxConcurrency must be specified as a number.')
+    if (typeof maxConcurrency != 'number') throw Error('maxConcurrency must be specified as a number. Not: '+maxConcurrency)
+    if (maxConcurrency < 1) throw Error(`maxConcurrency can't be less than 1.`)
     this.#maxConcurrency = maxConcurrency
   }
 
@@ -110,7 +111,11 @@ export class ConcurrencyController {
       await this.#mutex.lock() // unlocked when work available
     }
     this.#runningJobs ++
-    await jobFunction(...args)
+    try {
+      await jobFunction(...args)
+    } catch (error) {
+      console.error(`Error thrown in a ConcurrencyController job: ${error}`)
+    }
     this.#runningJobs --
     this.#mutex.key?.unlock() // signal work available to next waiting job
     this.#jobsDone ++

@@ -2,7 +2,7 @@
   "name": "jlc-mutex",
   "main": "./mutex.js",
   "type": "module",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "A powerful promise based mutex and a concurrency controller as a bonus.",
   "license": "MIT",
   "repository": {
