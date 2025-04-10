@@ -105,23 +105,20 @@ export class ConcurrencyController {
 
   async pushJob(jobFunction, ...args) {
     this.#jobsPushed ++
-    if (this.#runningJobs > this.#maxConcurrency) {
-      throw Error('omg')
-    } else if (this.#runningJobs == this.#maxConcurrency) {
-      await this.#mutex.lock() // unlocked when work available
-    }
-    this.#runningJobs ++
+    await this.#mutex.lock()
     try {
+      this.#runningJobs ++
       await jobFunction(...args)
     } catch (error) {
-      console.error(`Error thrown in a ConcurrencyController job: ${error}`)
-    }
-    this.#runningJobs --
-    this.#mutex.key?.unlock() // signal work available to next waiting job
-    this.#jobsDone ++
-    if (this.#donePromise && this.#jobsDone == this.#jobsPushed) {
-      this.#donePromiseResolve(true)
-      this.#donePromise = null
+      console.error(`Error in ConcurrencyController job: ${error}`)
+    } finally {
+      this.#runningJobs --
+      this.#jobsDone ++
+      this.#mutex.unlock()
+      if (this.#donePromise && this.#jobsDone == this.#jobsPushed) {
+        this.#donePromiseResolve(true)
+        this.#donePromise = null
+      }
     }
   }
 }
